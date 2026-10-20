@@ -19,20 +19,20 @@ services:
       - type: bind
         source: "${HF_CACHE_DIR:?HF_CACHE_DIR is set by ./rc}"
         target: /hf-cache
-        bind: {create_host_path: false}
+        bind: {create_host_path: false, selinux: z}
       - type: bind
         source: "${RUNTIME_DIR:?RUNTIME_DIR is set by ./rc}"
         target: /runtime
-        bind: {create_host_path: false}
+        bind: {create_host_path: false, selinux: Z}
       - type: bind
         source: "${PROMPT_CACHE_DIR:?PROMPT_CACHE_DIR is set by ./rc}"
         target: /prompt-cache
-        bind: {create_host_path: false}
+        bind: {create_host_path: false, selinux: Z}
       - type: bind
         source: "${LOCAL_MODELS_DIR:?LOCAL_MODELS_DIR is set by ./rc}"
         target: /models
         read_only: true
-        bind: {create_host_path: false}
+        bind: {create_host_path: false, selinux: z}
     command:
       - --hf-repo
       - "${HF_REPO:-unsloth/Qwen3.8-27B-GGUF}"

@@ -71,7 +71,9 @@ speculation.
 Use `./rc devices` to inspect the selected GPU. It must report a hardware
 `VulkanN` device; the wrapper filters out llvmpipe/lavapipe, maps `/dev/dri`,
 adds its numeric group IDs, runs as your UID/GID, and explicitly passes the
-device to llama.cpp.
+device to llama.cpp. Bind mounts request SELinux relabeling automatically on
+Fedora and other enforcing hosts; the shared model directories use the shared
+`z` label while private runtime directories use `Z`.
 
 ### Override the defaults
 

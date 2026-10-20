@@ -31,7 +31,8 @@ service.
    for rollback.
 3. Keep Buildx cache exports under `.buildx-cache/upstream/vulkan`.
 4. Run as the caller's UID/GID and share the host HF cache. Do not bake models,
-   tokens, or host paths into the image.
+   tokens, or host paths into the image. Keep shared model mounts labeled `z`
+   and private runtime mounts labeled `Z` for SELinux hosts.
 5. Expose `/dev/dri` when present. Add an NVIDIA Compose GPU reservation only
    when both the runtime and an NVIDIA GPU are detected. Request all NVIDIA
    driver capabilities so its Vulkan ICD can be injected on native Linux.
