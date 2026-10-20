@@ -231,22 +231,62 @@ def discover_devices(env):
     override = env.get("VULKAN_DEVICES", "").strip()
     if override:
         return [item.strip() for item in override.split(",") if item.strip()], "configured"
-    cmd = compose_files(env) + ["run", "--rm", "--no-deps", "--entrypoint", "/app/llama-server",
-                                "llama-server", "--list-devices"]
+    probe_script = "/app/llama-server --list-devices; echo __VULKANINFO__; vulkaninfo --summary"
+    cmd = compose_files(env) + ["run", "--rm", "--no-deps", "--entrypoint", "/bin/sh",
+                                "llama-server", "-c", probe_script]
     result = subprocess.run([str(x) for x in cmd], cwd=ROOT, env=env, capture_output=True, text=True)
     report = result.stdout + result.stderr
     if result.returncode:
         raise ValueError("Vulkan device probe failed:\n" + report.strip())
     devices = []
+    descriptions = {}
     for line in report.splitlines():
         match = re.search(r"\b(Vulkan\d+)\s*:\s*(.*)", line)
         if match and not any(word in match.group(2).lower() for word in ("llvmpipe", "lavapipe", "cpu")):
             devices.append(match.group(1))
+            descriptions[match.group(1)] = match.group(2)
     devices = list(dict.fromkeys(devices))
     if not devices:
         raise ValueError("No hardware Vulkan devices found. Probe output:\n" + report.strip())
-    atomic_json(STATE / "vulkan-devices.json", {"devices": devices, "probe": report})
-    return devices, report
+
+    # llama.cpp and vulkaninfo both enumerate through the Vulkan loader. Prefer
+    # one discrete GPU so an integrated GPU cannot throttle an automatic layer
+    # split. Users can explicitly request one or several devices with
+    # VULKAN_DEVICES when their loader uses unusual numbering or multi-GPU is
+    # intentional.
+    types = {}
+    current = None
+    in_vulkaninfo = False
+    for line in report.splitlines():
+        if "__VULKANINFO__" in line:
+            in_vulkaninfo = True
+            continue
+        if not in_vulkaninfo:
+            continue
+        match = re.match(r"GPU(\d+):", line.strip())
+        if match:
+            current = f"Vulkan{match.group(1)}"
+            continue
+        match = re.search(r"deviceType\s*=\s*(PHYSICAL_DEVICE_TYPE_[A-Z_]+)", line)
+        if current and match:
+            types[current] = match.group(1)
+
+    discrete = [device for device in devices
+                if types.get(device) == "PHYSICAL_DEVICE_TYPE_DISCRETE_GPU"]
+    candidates = discrete or devices
+
+    def memory_mib(device):
+        match = re.search(r"(\d+)\s+MiB", descriptions.get(device, ""))
+        return int(match.group(1)) if match else 0
+
+    selected = [max(candidates, key=memory_mib)]
+    reason = "discrete GPU" if discrete else "first/best available hardware GPU"
+    selection = f"Selected {selected[0]} ({reason}); set VULKAN_DEVICES to override."
+    full_report = report.rstrip() + "\n" + selection + "\n"
+    atomic_json(STATE / "vulkan-devices.json", {
+        "available": devices, "types": types, "selected": selected, "probe": report,
+    })
+    return selected, full_report
 
 
 def resolved_command(env, args, devices):

@@ -71,6 +71,9 @@ services:
       - "2"
       - --fit
       - "off"
+      # Text-first profile: -hf otherwise auto-downloads and GPU-offloads the
+      # BF16 vision projector, consuming memory and changing performance.
+      - --no-mmproj
       - --jinja
       - --chat-template-kwargs
       - '{"preserve_thinking":true,"reasoning_effort":"medium"}'

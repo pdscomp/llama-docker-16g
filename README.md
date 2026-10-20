@@ -66,7 +66,8 @@ That command pulls the public image when needed, discovers the Radeon, creates
 the shared cache directories, downloads the default Qwen model through
 llama.cpp, and starts the API on port 8080. It uses the Qwen 3.8 27B profile,
 73,728 context, Q4_1 KV, flash attention, one slot, and modified n-gram plus MTP
-speculation.
+speculation. It disables the optional vision projector to preserve GPU memory
+and match the benchmarked text configuration.
 
 Use `./rc devices` to inspect the selected GPU. It must report a hardware
 `VulkanN` device; the wrapper filters out llvmpipe/lavapipe, maps `/dev/dri`,
@@ -98,6 +99,7 @@ Use an existing local model, an immutable image, or additional native
 ./rc start --model /models/my-model.gguf --offline
 ./rc start --tag vulkan-2026.10.20-02.14.49-gba3c05f71da8
 ./rc start --extra-args --verbose --metrics
+./rc start --extra-args --mmproj-auto # opt into the vision projector
 ```
 
 To build locally instead of pulling the published image, run this before
@@ -173,15 +175,17 @@ with GitHub's scoped package token and retains the Bake cache between runs.
 
 ## GPU selection
 
-By default, `./rc start` runs `llama-server --list-devices` inside the same
-container and with the same hardware mounts used by the service. Every hardware
-Vulkan device is then passed to llama.cpp. Inspect the detected mapping with:
+By default, `./rc start` runs `llama-server --list-devices` and `vulkaninfo`
+inside the same container and with the same hardware mounts used by the
+service. It prefers one discrete GPU, preventing an integrated GPU from
+throttling an automatic model split. If no discrete GPU exists, it selects the
+best available hardware device. Inspect the mapping and selection with:
 
 ```bash
 ./rc devices
 ```
 
-To select a subset or change order, set this in `.env`:
+To select another device or deliberately use several GPUs, set this in `.env`:
 
 ```dotenv
 VULKAN_DEVICES=Vulkan0,Vulkan2

@@ -36,9 +36,11 @@ service.
 5. Expose `/dev/dri` when present. Add an NVIDIA Compose GPU reservation only
    when both the runtime and an NVIDIA GPU are detected. Request all NVIDIA
    driver capabilities so its Vulkan ICD can be injected on native Linux.
-6. Discover container-visible devices with `llama-server --list-devices`, reject
-   software Vulkan implementations, and pass explicit `VulkanN` names. Never
-   assume host PCI numbering equals container Vulkan numbering.
+6. Discover container-visible devices with `llama-server --list-devices` and
+   classify them with `vulkaninfo`. Reject software implementations and prefer
+   one discrete GPU so an iGPU cannot throttle an automatic split. Preserve
+   `VULKAN_DEVICES` as the explicit single/multi-GPU override. Never assume host
+   PCI numbering equals container Vulkan numbering.
 7. Keep one managed server service and save its exact command and selected
    devices in `.state/active.json`.
 8. Redact `HF_TOKEN` from printed Compose config and never use it as a build arg.
@@ -66,4 +68,8 @@ graphics driver capability is present.
 The default Qwen profile is close to a 16 GiB VRAM limit. Changes to context,
 KV types, MTP, batch sizes, or device count require a real load test and memory
 measurement before changing defaults.
+
+The default is text-only and passes `--no-mmproj`; `-hf` otherwise discovers,
+downloads, and GPU-offloads a BF16 vision projector. Users can append
+`--mmproj-auto` through `--extra-args` when they need vision.
 
