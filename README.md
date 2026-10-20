@@ -52,14 +52,33 @@ Linux is the supported NVIDIA Vulkan path.
 
 ## Build and run
 
+### Radeon quick start
+
+On a native Linux host with a working Mesa/RADV Vulkan driver:
+
 ```bash
 git clone https://github.com/pdscomp/llama-docker-16g.git
 cd llama-docker-16g
 cp .env.example .env
 
 ./rc pull                 # use ghcr.io/pdscomp/llama-docker-16g:vulkan-latest
-# Or: ./rc build          # build the pinned source locally with Buildx Bake
 ./rc devices
+./rc download unsloth/Qwen3.8-27B-GGUF \
+  Qwen3.8-27B-UD-Q3_K_XL.gguf \
+  --revision 430473d9d0e975450ce1f445642b6527cb4faea1
+./rc start --model /hf-cache/hub/models--unsloth--Qwen3.8-27B-GGUF/snapshots/430473d9d0e975450ce1f445642b6527cb4faea1/Qwen3.8-27B-UD-Q3_K_XL.gguf --offline
+```
+
+`./rc devices` must report a hardware `VulkanN` device and filters out
+llvmpipe/lavapipe. Change `HOST_PORT` in `.env` when port 8080 is occupied. The
+wrapper maps `/dev/dri`, adds its numeric group IDs, runs the container as your
+UID/GID, and explicitly gives the discovered Vulkan device to llama.cpp.
+
+To build instead of pulling, replace `./rc pull` with:
+
+```bash
+./rc build --print        # inspect the pinned Bake definition
+./rc build                # compile and populate the reusable local cache
 ```
 
 `./rc start` also pulls `vulkan-latest` when it is absent. Local builds use the
@@ -67,7 +86,11 @@ same image repository, create an immutable
 `vulkan-YYYY.MM.DD-HH.MM.SS-g<upstream-sha>` tag, and move the local
 `vulkan-latest` and `latest` aliases after a successful build.
 
-Download the pinned model into the shared cache:
+The download command above places the pinned model in the shared cache. To use
+a different shared cache location, set `HF_CACHE_DIR` in `.env` before running
+it.
+
+The same download command on its own is:
 
 ```bash
 ./rc download unsloth/Qwen3.8-27B-GGUF \
