@@ -9,7 +9,7 @@ passes every hardware device explicitly with `--device Vulkan0,Vulkan1,...`.
 
 The default runtime is tuned for the 16 GiB Qwen 3.8 setup described in the
 [LocalLLaMA configuration post](https://www.reddit.com/r/LocalLLaMA/comments/1vqrt86/):
-Unsloth `UD-Q3_K_XL`, 73,728 context, Q4_1 KV, native MTP plus modified n-gram
+Unsloth `UD-Q3_K_XL`, 69,632 context, Q4_1 KV, native MTP plus modified n-gram
 speculation, and one slot. Settings live in Compose and `.env`, so this is also
 a general upstream Vulkan harness.
 
@@ -65,7 +65,7 @@ cd llama-docker-16g
 That command pulls the public image when needed, discovers the Radeon, creates
 the shared cache directories, downloads the default Qwen model through
 llama.cpp, and starts the API on port 8080. It uses the Qwen 3.8 27B profile,
-73,728 context, Q4_1 KV, flash attention, one slot, and modified n-gram plus MTP
+69,632 context, Q4_1 KV, flash attention, one slot, and modified n-gram plus MTP
 speculation. It disables the optional vision projector to preserve GPU memory
 and match the benchmarked text configuration.
 

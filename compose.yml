@@ -41,7 +41,7 @@ services:
       - --alias
       - "${MODEL_ALIAS:-Qwen3.8-27B}"
       - --ctx-size
-      - "${CTX_SIZE:-73728}"
+      - "${CTX_SIZE:-69632}"
       - --batch-size
       - "${BATCH_SIZE:-1024}"
       - --ubatch-size
