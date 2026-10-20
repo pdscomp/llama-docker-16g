@@ -121,6 +121,9 @@ gh auth token | docker login ghcr.io -u YOUR_GITHUB_USER --password-stdin
 ./rc publish
 ```
 
+The repository's **Publish Vulkan image** workflow performs those same commands
+with GitHub's scoped package token and retains the Bake cache between runs.
+
 ## GPU selection
 
 By default, `./rc start` runs `llama-server --list-devices` inside the same

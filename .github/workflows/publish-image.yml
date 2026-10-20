@@ -1,0 +1,33 @@
+name: Publish Vulkan image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+        with:
+          name: llama-vulkan-builder
+          driver: docker-container
+      - uses: actions/cache@v4
+        with:
+          path: .buildx-cache
+          key: buildx-vulkan-${{ runner.os }}-${{ hashFiles('forks.json', 'docker/vulkan-server.Dockerfile') }}
+          restore-keys: buildx-vulkan-${{ runner.os }}-
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build pinned upstream llama.cpp
+        run: ./rc build
+      - name: Push immutable and alias tags
+        run: ./rc publish

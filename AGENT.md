@@ -20,6 +20,8 @@ service.
   absent because `scripts/manage.py` generates `.state/hardware.json` per host.
 - `scripts/manage.py`: all source, image, device, and runtime orchestration.
 - `.env.example`: documented user overrides. `.env` is private and ignored.
+- `.github/workflows/publish-image.yml`: manual GHCR build and publication with
+  the repository's package token and a persistent local Bake cache.
 
 ## Invariants
 
