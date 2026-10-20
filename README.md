@@ -59,22 +59,47 @@ On a native Linux host with a working Mesa/RADV Vulkan driver:
 ```bash
 git clone https://github.com/pdscomp/llama-docker-16g.git
 cd llama-docker-16g
-cp .env.example .env
-
-./rc pull                 # use ghcr.io/pdscomp/llama-docker-16g:vulkan-latest
-./rc devices
-./rc download unsloth/Qwen3.8-27B-GGUF \
-  Qwen3.8-27B-UD-Q3_K_XL.gguf \
-  --revision 430473d9d0e975450ce1f445642b6527cb4faea1
-./rc start --model /hf-cache/hub/models--unsloth--Qwen3.8-27B-GGUF/snapshots/430473d9d0e975450ce1f445642b6527cb4faea1/Qwen3.8-27B-UD-Q3_K_XL.gguf --offline
+./rc start
 ```
 
-`./rc devices` must report a hardware `VulkanN` device and filters out
-llvmpipe/lavapipe. Change `HOST_PORT` in `.env` when port 8080 is occupied. The
-wrapper maps `/dev/dri`, adds its numeric group IDs, runs the container as your
-UID/GID, and explicitly gives the discovered Vulkan device to llama.cpp.
+That command pulls the public image when needed, discovers the Radeon, creates
+the shared cache directories, downloads the default Qwen model through
+llama.cpp, and starts the API on port 8080. It uses the Qwen 3.8 27B profile,
+73,728 context, Q4_1 KV, flash attention, one slot, and modified n-gram plus MTP
+speculation.
 
-To build instead of pulling, replace `./rc pull` with:
+Use `./rc devices` to inspect the selected GPU. It must report a hardware
+`VulkanN` device; the wrapper filters out llvmpipe/lavapipe, maps `/dev/dri`,
+adds its numeric group IDs, runs as your UID/GID, and explicitly passes the
+device to llama.cpp.
+
+### Override the defaults
+
+No `.env` file is required. Create one only when changing settings:
+
+```bash
+cp .env.example .env
+# Edit HOST_PORT, HF_REPO, HF_FILE, CTX_SIZE, CACHE_K, CACHE_V, etc.
+./rc start
+```
+
+Environment variables can also override one run without creating a file:
+
+```bash
+HOST_PORT=8082 CTX_SIZE=32768 ./rc start
+```
+
+Use an existing local model, an immutable image, or additional native
+`llama-server` flags like this:
+
+```bash
+./rc start --model /models/my-model.gguf --offline
+./rc start --tag vulkan-2026.10.20-02.14.49-gba3c05f71da8
+./rc start --extra-args --verbose --metrics
+```
+
+To build locally instead of pulling the published image, run this before
+`./rc start`:
 
 ```bash
 ./rc build --print        # inspect the pinned Bake definition
@@ -86,11 +111,8 @@ same image repository, create an immutable
 `vulkan-YYYY.MM.DD-HH.MM.SS-g<upstream-sha>` tag, and move the local
 `vulkan-latest` and `latest` aliases after a successful build.
 
-The download command above places the pinned model in the shared cache. To use
-a different shared cache location, set `HF_CACHE_DIR` in `.env` before running
-it.
-
-The same download command on its own is:
+For an exact model revision and fully offline runtime, pre-download it into the
+shared cache:
 
 ```bash
 ./rc download unsloth/Qwen3.8-27B-GGUF \

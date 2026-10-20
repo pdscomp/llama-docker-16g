@@ -383,11 +383,14 @@ def main():
     item.add_argument("--print", action="store_true")
     item.set_defaults(func=build)
     for action in ("start", "config"):
-        item = sub.add_parser(action)
-        item.add_argument("--tag")
-        item.add_argument("--model")
-        item.add_argument("--offline", action="store_true")
-        item.add_argument("--extra-args", nargs=argparse.REMAINDER)
+        item = sub.add_parser(action, help=(
+            "pull if needed, discover GPUs, and start the default Qwen profile"
+            if action == "start" else "print the resolved runtime configuration"))
+        item.add_argument("--tag", help="override IMAGE_TAG")
+        item.add_argument("--model", help="existing GGUF under /hf-cache or /models")
+        item.add_argument("--offline", action="store_true", help="disable runtime network access")
+        item.add_argument("--extra-args", nargs=argparse.REMAINDER,
+                          help="additional llama-server arguments; must be last")
         item.set_defaults(func=runtime)
     for action in ("stop", "status", "logs"):
         item = sub.add_parser(action)
