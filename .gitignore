@@ -2,6 +2,8 @@
 .secrets/
 .state/
 .venv/
+__pycache__/
+*.py[cod]
 .buildx-cache/
 sources/
 RESULTS*.md

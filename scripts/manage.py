@@ -112,15 +112,15 @@ def fetch(update=False):
     path = source_path()
     path.parent.mkdir(exist_ok=True)
     if not path.exists():
-        run(["git", "init", path])
-        run(["git", "-C", path, "remote", "add", "origin", spec["url"]])
+        run(["git", "init", path], stdout=sys.stderr)
+        run(["git", "-C", path, "remote", "add", "origin", spec["url"]], stdout=sys.stderr)
     clean_source(path)
     found = subprocess.run(["git", "-C", path, "cat-file", "-e", spec["commit"] + "^{commit}"],
                            capture_output=True)
     if found.returncode:
-        run(["git", "-C", path, "fetch", "--depth=1", "origin", spec["commit"]])
-    run(["git", "-C", path, "checkout", "--detach", spec["commit"]])
-    run(["git", "-C", path, "submodule", "update", "--init", "--recursive", "--depth=1"])
+        run(["git", "-C", path, "fetch", "--depth=1", "origin", spec["commit"]], stdout=sys.stderr)
+    run(["git", "-C", path, "checkout", "--detach", spec["commit"]], stdout=sys.stderr)
+    run(["git", "-C", path, "submodule", "update", "--init", "--recursive", "--depth=1"], stdout=sys.stderr)
     if update:
         print("Updated forks.json; review and commit the new upstream pin.")
     return path
