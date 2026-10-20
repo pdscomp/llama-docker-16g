@@ -1,8 +1,13 @@
 # Agent guide
 
+Canonical remotes are `https://github.com/pdscomp/llama-docker-16g` and
+`ghcr.io/pdscomp/llama-docker-16g`. Clones pull `vulkan-latest` by default;
+local builds use the same repository name so Compose needs no changes.
+
 Read this file before modifying the repository. This is an upstream-only
 `llama.cpp` Vulkan harness for mixed AMD Radeon and NVIDIA Linux hosts. It builds
-one image family, `llama-cpp-upstream-vulkan`, and manages one Compose service.
+one image family, `ghcr.io/pdscomp/llama-docker-16g`, and manages one Compose
+service.
 
 ## Authoritative files
 
@@ -25,10 +30,9 @@ one image family, `llama-cpp-upstream-vulkan`, and manages one Compose service.
 3. Keep Buildx cache exports under `.buildx-cache/upstream/vulkan`.
 4. Run as the caller's UID/GID and share the host HF cache. Do not bake models,
    tokens, or host paths into the image.
-5. Expose `/dev/dri` when present. Enable NVIDIA runtime only when both the
-   runtime and an NVIDIA GPU are detected. Use
-   `NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics` so Vulkan ICD support is
-   injected.
+5. Expose `/dev/dri` when present. Add an NVIDIA Compose GPU reservation only
+   when both the runtime and an NVIDIA GPU are detected. Request all NVIDIA
+   driver capabilities so its Vulkan ICD can be injected on native Linux.
 6. Discover container-visible devices with `llama-server --list-devices`, reject
    software Vulkan implementations, and pass explicit `VulkanN` names. Never
    assume host PCI numbering equals container Vulkan numbering.
@@ -47,6 +51,7 @@ one image family, `llama-cpp-upstream-vulkan`, and manages one Compose service.
 ./rc config [start options]   # inspect resolved runtime
 ./rc start [start options]    # recreate the one managed server
 ./rc status | ./rc logs | ./rc stop
+python3 scripts/benchmark.py # cold prompt/generation sweep; writes RESULTS.json
 ```
 
 For runtime failures inspect, in order: `.state/active.json`,

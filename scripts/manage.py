@@ -18,6 +18,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 STATE = ROOT / ".state"
 PROJECT = "llama-docker-16g"
+DEFAULT_IMAGE_REPOSITORY = "ghcr.io/pdscomp/llama-docker-16g"
 
 
 def run(args, **kwargs):
@@ -76,6 +77,7 @@ def environment():
     directory("HF_HUB_CACHE", Path(env["HF_CACHE_DIR"]) / "hub")
     env["LLAMA_CACHE"] = env["HF_HUB_CACHE"]
     env.setdefault("IMAGE_TAG", "vulkan-latest")
+    env.setdefault("IMAGE_REPOSITORY", DEFAULT_IMAGE_REPOSITORY)
     env.setdefault("HF_XET_HIGH_PERFORMANCE", "1")
     token_file = ROOT / ".secrets" / "hf-token"
     if not env.get("HF_TOKEN") and token_file.exists():
@@ -140,7 +142,8 @@ def build(args):
     env.setdefault("BUILD_JOBS", "8")
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y.%m.%d-%H.%M.%S")
     tag = f"vulkan-{stamp}-g{spec['commit'][:12]}"
-    image = f"llama-cpp-upstream-vulkan:{tag}"
+    repository = env["IMAGE_REPOSITORY"]
+    image = f"{repository}:{tag}"
     with locked("upstream"):
         path = fetch()
         devops = path / ".devops"
@@ -172,7 +175,7 @@ def build(args):
         try:
             run(command + ["--builder", builder, "--progress=plain", "upstream"], env=env)
             image_id = output(["docker", "image", "inspect", "--format", "{{.Id}}", image])
-            tags = [image, "llama-cpp-upstream-vulkan:vulkan-latest", "llama-cpp-upstream-vulkan:latest"]
+            tags = [image, f"{repository}:vulkan-latest", f"{repository}:latest"]
             for alias in tags[1:]:
                 run(["docker", "tag", image, alias])
             atomic_json(history, {"status": "success", "image": image, "image_id": image_id,
@@ -199,10 +202,12 @@ def hardware_override(env):
         probe = subprocess.run(["nvidia-smi", "-L"], capture_output=True, text=True)
         has_nvidia = probe.returncode == 0 and bool(probe.stdout.strip())
     if has_nvidia:
-        service["runtime"] = "nvidia"
+        service["deploy"] = {"resources": {"reservations": {"devices": [{
+            "driver": "nvidia", "count": "all", "capabilities": ["gpu"]
+        }]}}}
         service["environment"].update(
             NVIDIA_VISIBLE_DEVICES="all",
-            NVIDIA_DRIVER_CAPABILITIES="compute,utility,graphics",
+            NVIDIA_DRIVER_CAPABILITIES="all",
         )
     if not dri.is_dir() and not has_nvidia:
         raise ValueError("No /dev/dri devices or NVIDIA container runtime were detected")
@@ -287,9 +292,10 @@ def runtime(args):
                      "logs": ["logs", "--tail", "100", "-f", "llama-server"]}[args.action]
         run(command + operation, env=env)
         return
-    image = f"llama-cpp-upstream-vulkan:{env['IMAGE_TAG']}"
+    image = f"{env['IMAGE_REPOSITORY']}:{env['IMAGE_TAG']}"
     if not image_exists(image):
-        raise ValueError(f"Missing {image}; run ./rc build")
+        print(f"Pulling {image} ...", file=sys.stderr)
+        run(["docker", "pull", image])
     devices, report = discover_devices(env)
     config, command = resolved_command(env, args, devices)
     if args.action == "config":
@@ -335,8 +341,36 @@ def download(args):
 
 
 def images(_args):
-    run(["docker", "image", "ls", "llama-cpp-upstream-vulkan",
+    repository = environment()["IMAGE_REPOSITORY"]
+    run(["docker", "image", "ls", repository,
          "--format", "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}"])
+
+
+def publish(args):
+    env = environment()
+    repository = env["IMAGE_REPOSITORY"]
+    if args.tag:
+        images = [f"{repository}:{args.tag}"]
+    else:
+        successful = None
+        for path in sorted((STATE / "builds").glob("*.json"), reverse=True):
+            record = json.loads(path.read_text())
+            if record.get("status") == "success":
+                successful = record
+                break
+        if not successful:
+            raise ValueError("No successful build record; run ./rc build first")
+        images = [image for image in successful["tags"] if image.startswith(repository + ":")]
+    for image in images:
+        if not image_exists(image):
+            raise ValueError(f"Missing local image {image}; run ./rc build first")
+        run(["docker", "push", image])
+
+
+def pull(args):
+    env = environment()
+    tag = args.tag or env["IMAGE_TAG"]
+    run(["docker", "pull", f"{env['IMAGE_REPOSITORY']}:{tag}"])
 
 
 def main():
@@ -367,6 +401,12 @@ def main():
     item.set_defaults(func=download)
     item = sub.add_parser("images")
     item.set_defaults(func=images)
+    item = sub.add_parser("publish")
+    item.add_argument("--tag", help="push one local tag; defaults to the latest successful build's tags")
+    item.set_defaults(func=publish)
+    item = sub.add_parser("pull")
+    item.add_argument("--tag")
+    item.set_defaults(func=pull)
     args = parser.parse_args()
     if getattr(args, "tag", None):
         os.environ["IMAGE_TAG"] = args.tag

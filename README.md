@@ -41,21 +41,31 @@ and [Vulkan Dockerfile](https://github.com/ggml-org/llama.cpp/blob/master/.devop
 - For Radeon: a working host Vulkan driver and `/dev/dri` render nodes. The
   wrapper passes the whole `/dev/dri` directory and its numeric group IDs.
 - For NVIDIA: the proprietary driver plus NVIDIA Container Toolkit. The wrapper
-  enables the `nvidia` runtime only when it is installed and GPUs are present.
+  adds a Compose GPU reservation only when the runtime is installed and GPUs
+  are present. Native Linux must expose NVIDIA's graphics driver capability.
 - Enough disk for source, the image, BuildKit cache, and model weights.
 
 You do not need CUDA or ROCm inside this image. Both GPU vendors use Vulkan.
+Verify `./rc devices` on WSL2 before downloading a model. The WSL2 host used to
+develop this repository exposes NVIDIA CUDA but no NVIDIA Vulkan ICD; native
+Linux is the supported NVIDIA Vulkan path.
 
 ## Build and run
 
 ```bash
-cd /home/paul/docker/llama-docker-16g
+git clone https://github.com/pdscomp/llama-docker-16g.git
+cd llama-docker-16g
 cp .env.example .env
 
-./rc fetch
-./rc build
+./rc pull                 # use ghcr.io/pdscomp/llama-docker-16g:vulkan-latest
+# Or: ./rc build          # build the pinned source locally with Buildx Bake
 ./rc devices
 ```
+
+`./rc start` also pulls `vulkan-latest` when it is absent. Local builds use the
+same image repository, create an immutable
+`vulkan-YYYY.MM.DD-HH.MM.SS-g<upstream-sha>` tag, and move the local
+`vulkan-latest` and `latest` aliases after a successful build.
 
 Download the pinned model into the shared cache:
 
@@ -77,6 +87,17 @@ the file path below to avoid network resolution at runtime:
 The OpenAI-compatible API and web UI are then available at
 `http://localhost:8080`, with model alias `Qwen3.8-27B`.
 
+Run repeatable cold prompt benchmarks at 1%, 25%, 50%, 75%, and 95% of the
+configured context:
+
+```bash
+python3 scripts/benchmark.py --context 73728
+```
+
+Each request uses an exact token-array prompt, greedy generation, a fixed seed,
+128 output tokens, and prompt-cache reuse disabled. Results go to the ignored
+`RESULTS.json` file.
+
 Useful commands:
 
 ```bash
@@ -91,6 +112,14 @@ Useful commands:
 `./rc build --print` prepares the pinned source and prints Bake's resolved build
 without compiling. `./rc update` advances the upstream pin in `forks.json`; that
 change should be reviewed and committed before building.
+
+Maintainers can publish the latest successful build, including its immutable
+rollback tag and both aliases, after authenticating Docker to GHCR:
+
+```bash
+gh auth token | docker login ghcr.io -u YOUR_GITHUB_USER --password-stdin
+./rc publish
+```
 
 ## GPU selection
 

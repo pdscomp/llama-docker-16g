@@ -1,8 +1,8 @@
 name: llama-docker-16g
 services:
   llama-server:
-    image: "llama-cpp-upstream-vulkan:${IMAGE_TAG:-vulkan-latest}"
-    pull_policy: never
+    image: "${IMAGE_REPOSITORY:-ghcr.io/pdscomp/llama-docker-16g}:${IMAGE_TAG:-vulkan-latest}"
+    pull_policy: missing
     user: "${LOCAL_UID:?LOCAL_UID is set by ./rc}:${LOCAL_GID:?LOCAL_GID is set by ./rc}"
     init: true
     restart: unless-stopped

@@ -1,5 +1,6 @@
 variable "BUILD_JOBS" { default = "8" }
 variable "BUILD_TAG" { default = "dev" }
+variable "IMAGE_REPOSITORY" { default = "ghcr.io/pdscomp/llama-docker-16g" }
 
 group "default" { targets = ["upstream"] }
 
@@ -9,7 +10,7 @@ target "upstream" {
   target = "server"
   platforms = ["linux/amd64"]
   output = ["type=docker"]
-  tags = ["llama-cpp-upstream-vulkan:vulkan-${BUILD_TAG}"]
+  tags = ["${IMAGE_REPOSITORY}:vulkan-${BUILD_TAG}"]
   args = {
     BUILD_JOBS = BUILD_JOBS
   }

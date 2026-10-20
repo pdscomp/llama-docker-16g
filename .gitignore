@@ -2,6 +2,7 @@
 .secrets/
 .state/
 .venv/
+RESULTS.json
 __pycache__/
 *.py[cod]
 .buildx-cache/
