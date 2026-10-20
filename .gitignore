@@ -1,0 +1,9 @@
+.env
+.secrets/
+.state/
+.venv/
+.buildx-cache/
+sources/
+RESULTS*.md
+RESULTS*.json
+

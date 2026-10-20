@@ -1,0 +1,102 @@
+name: llama-docker-16g
+services:
+  llama-server:
+    image: "llama-cpp-upstream-vulkan:${IMAGE_TAG:-vulkan-latest}"
+    pull_policy: never
+    user: "${LOCAL_UID:?LOCAL_UID is set by ./rc}:${LOCAL_GID:?LOCAL_GID is set by ./rc}"
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-8080}:8080"
+    environment:
+      HOME: /runtime/home
+      HF_HOME: /hf-cache
+      HF_HUB_CACHE: /hf-cache/hub
+      LLAMA_CACHE: /hf-cache/hub
+      HF_TOKEN: "${HF_TOKEN:-}"
+      LLAMA_ARG_KV_UNIFIED: "${KV_UNIFIED:-0}"
+    volumes:
+      - type: bind
+        source: "${HF_CACHE_DIR:?HF_CACHE_DIR is set by ./rc}"
+        target: /hf-cache
+        bind: {create_host_path: false}
+      - type: bind
+        source: "${RUNTIME_DIR:?RUNTIME_DIR is set by ./rc}"
+        target: /runtime
+        bind: {create_host_path: false}
+      - type: bind
+        source: "${PROMPT_CACHE_DIR:?PROMPT_CACHE_DIR is set by ./rc}"
+        target: /prompt-cache
+        bind: {create_host_path: false}
+      - type: bind
+        source: "${LOCAL_MODELS_DIR:?LOCAL_MODELS_DIR is set by ./rc}"
+        target: /models
+        read_only: true
+        bind: {create_host_path: false}
+    command:
+      - --hf-repo
+      - "${HF_REPO:-unsloth/Qwen3.8-27B-GGUF}"
+      - --hf-file
+      - "${HF_FILE:-Qwen3.8-27B-UD-Q3_K_XL.gguf}"
+      - --alias
+      - "${MODEL_ALIAS:-Qwen3.8-27B}"
+      - --ctx-size
+      - "${CTX_SIZE:-73728}"
+      - --batch-size
+      - "${BATCH_SIZE:-1024}"
+      - --ubatch-size
+      - "${UBATCH_SIZE:-512}"
+      - --threads
+      - "${THREADS:-8}"
+      - --threads-batch
+      - "${THREADS_BATCH:-8}"
+      - --parallel
+      - "${PARALLEL:-1}"
+      - --no-cont-batching
+      - --gpu-layers
+      - "999"
+      - --flash-attn
+      - "on"
+      - --cache-type-k
+      - "${CACHE_K:-q4_1}"
+      - --cache-type-v
+      - "${CACHE_V:-q4_1}"
+      - --ctx-checkpoints
+      - "0"
+      - --cache-ram
+      - "2048"
+      - --spec-type
+      - ngram-mod,draft-mtp
+      - --spec-draft-n-max
+      - "2"
+      - --fit
+      - "off"
+      - --jinja
+      - --chat-template-kwargs
+      - '{"preserve_thinking":true,"reasoning_effort":"medium"}'
+      - --reasoning-budget
+      - "5000"
+      - --temp
+      - "0.65"
+      - --top-p
+      - "0.95"
+      - --top-k
+      - "15"
+      - --min-p
+      - "0.05"
+      - --repeat-penalty
+      - "1.0"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+    logging:
+      driver: json-file
+      options: {max-size: "20m", max-file: "3"}
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20m
+      retries: 3
+
